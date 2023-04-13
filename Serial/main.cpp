@@ -3,10 +3,11 @@
 #include <cstring>
 #include <filesystem>
 #include <cmath>
-#include "src/KMeans.hpp"
+#include <vector>
+#include <random>
 
 std::vector<double>* mean(std::vector<std::vector<double>*>& points) {
-    assert(!points.empty());
+    // assert(!points.empty());
     auto p = points[0]->size();
     auto result = new std::vector<double>(p, 0);
     auto n = points.size();
@@ -69,7 +70,6 @@ bool find(std::vector<double>* element, std::vector<std::vector<double>*>& targe
     }
     return false;
 }
-
 std::vector<std::vector<double>*> init(std::vector<std::vector<double>*>& points, size_t K) {
     std::vector<std::vector<double>*> clusters;
     std::random_device r;
@@ -114,7 +114,7 @@ std::vector<double>* centroid(std::vector<std::vector<double>*>& points, std::ve
 std::vector<std::vector<double>*> KMeans(std::vector<std::vector<double>*>& points, std::vector<size_t*>& assignements,
                                          size_t K = 5) {
     auto n = points.size();
-    assert(n > K);
+    // assert(n > K);
     // initialize clusters centroids
     auto clusters = std::vector<std::vector<double>*>(K);
     // todo kmeans++ init
@@ -163,28 +163,6 @@ void printVectors(std::vector<std::vector<double>*>& vectors) {
 }
 
 
-std::vector<Data*> readFiles(const std::string& path, size_t K) {
-    double number;
-    std::vector<Data*> result = std::vector<Data*>();
-    size_t pos = 0, prev = 0;
-    for(auto const& entry: std::filesystem::directory_iterator(path)) {
-        std::cout << "Reading - " << entry.path() << " -" << std::endl;
-        std::ifstream file(entry.path());
-        std::string line;
-        while(std::getline(file, line)) {
-            auto point = new Data(K);
-            while(pos != line.npos) {
-                pos = line.find(",", prev + 1);
-                number = std::stod(line.substr(prev == 0 ? prev : prev + 1, pos > -1 ? pos - prev : line.npos));
-                point->getValue().emplace_back(number);
-                prev = pos;
-            }
-            prev = 0; pos = 0;
-            result.emplace_back(point);
-        }
-    }
-    return result;
-}
 
 std::vector<std::vector<double>*> readFiles2(const std::string& path, size_t K) {
     double number;
@@ -213,7 +191,7 @@ std::vector<std::vector<double>*> readFiles2(const std::string& path, size_t K) 
 
 int main() {
     size_t K = 10;
-    auto data = readFiles2("/Users/manu/Projects/KMeans/files", K);
+    auto data = readFiles2("./files/", K);
     auto assignements = std::vector<size_t*>();
     for(int i = 0; i < data.size(); i++) assignements.emplace_back(new size_t(0));
     auto r = KMeans(data, assignements, K);

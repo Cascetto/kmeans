@@ -3,5 +3,5 @@ project(Serial)
 
 set(CMAKE_CXX_STANDARD 17)
 include_directories(src)
-
-add_executable(Serial main.cpp src/KMeans.cpp)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_executable(Serial main.cpp)
