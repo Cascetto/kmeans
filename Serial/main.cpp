@@ -5,6 +5,11 @@
 #include <cmath>
 #include <vector>
 #include <random>
+#include <chrono>
+#include <algorithm>
+
+#define MAXITER 2
+
 
 std::vector<double>* mean(std::vector<std::vector<double>*>& points) {
     // assert(!points.empty());
@@ -28,12 +33,11 @@ double distance(std::vector<double>* x, std::vector<double>* y) {
     for(auto i = 0; i < p; i++) {
         distance += pow((*x)[i] - (*y)[i], 2);
     }
-    double r = sqrt(distance);
-    return r;// really necessary?
+    return distance >= 0 ? distance : INFINITY;
 }
 
 size_t assignCluster(std::vector<std::vector<double>*>& clusters, std::vector<double>* point) {
-    double minDistance = MAXFLOAT;
+    double minDistance = INFINITY;
     size_t closest = 0;
     for(auto i = 0; i < clusters.size(); i++) {
         double d = distance(point, clusters[i]);
@@ -45,110 +49,51 @@ size_t assignCluster(std::vector<std::vector<double>*>& clusters, std::vector<do
     return closest;
 }
 
-void clearVector(const std::vector<size_t*>& toFree) {
-    for(auto el: toFree) {
-        delete el;
-    }
-}
-
-void clearVector(const std::vector<std::vector<double>*>& toFree) {
-    for(auto el: toFree) {
-        delete el;
-    }
-}
-
-bool find(std::vector<double>* element, std::vector<std::vector<double>*>& target) {
-    for(const auto& vec: target) {
-        bool found = true;
-        for(size_t i = 0; i < vec->size(); i++) {
-            if((*element)[i] != (*vec)[i]) {
-                found = false;
-                break;
-            }
-        }
-        if(found) return true;
-    }
-    return false;
-}
-std::vector<std::vector<double>*> init(std::vector<std::vector<double>*>& points, size_t K) {
-    std::vector<std::vector<double>*> clusters;
-    std::random_device r;
-    auto e = std::default_random_engine(r());
-    std::uniform_int_distribution<size_t> points_dist(0, points.size() - 1);
-    // first cluster sampled randomly
-    auto cluster = new std::vector<double>(*points[points_dist(e)]);
-    clusters.emplace_back(cluster);
-    for(size_t i = 1; i < K; i++) {
-        size_t maxIndex = 0;
-        double maxDist = 0;
-        for(size_t j = 0; j < points.size(); j++) {
-            double d = 0;
-            for(const auto& c: clusters) {
-                d += distance(c, points[j]);
-            }
-            if(d >= maxDist && !find(points[j], clusters)) {
-                // check if not already present
-                maxDist = d;
-                maxIndex = j;
-            }
-        }
-        clusters.emplace_back(new std::vector<double>(*points[maxIndex]));
-    }
-    return clusters;
-}
-
-std::vector<double>* centroid(std::vector<std::vector<double>*>& points, std::vector<double>* mean) {
-    size_t index = 0;
-    double minDist = MAXFLOAT;
-    for(size_t i = 0; i < points.size(); i++) {
-        double d = distance(mean, points[i]);
-        if(d < minDist) {
-           index = i;
-           minDist = d;
-        }
-    }
-    return new std::vector<double>(*points[index]);
-}
-
-
-std::vector<std::vector<double>*> KMeans(std::vector<std::vector<double>*>& points, std::vector<size_t*>& assignements,
-                                         size_t K = 5) {
+std::vector<std::vector<double>*> KMeans(std::vector<std::vector<double>*>& points,
+                                         size_t K = 5, unsigned maxSamples = INT32_MAX) {
     auto n = points.size();
+    n = n < maxSamples ? n : maxSamples;
     // assert(n > K);
     // initialize clusters centroids
     auto clusters = std::vector<std::vector<double>*>(K);
-    // todo kmeans++ init
+    auto used = std::vector<size_t>();
     for(auto i = 0; i < K; i++) {
+        size_t id = rand() % n;
+        while(std::find(used.begin(), used.end(), id) != used.end()) id++;
+        used.emplace_back(id);
         clusters[i] = new std::vector<double>(*points[i]);
     }
     // auto clusters = init(points, K);
     // until convergence
-    bool converged;
-    size_t numIterations = 0;
-    do{
-        converged = true;
+
+
+    // Start measuring time
+    auto begin = std::chrono::high_resolution_clock::now();
+
+    for(int numIterations = 0; numIterations < MAXITER; numIterations++) {
         // assign to closest centroid
-        for(size_t i = 0; i < points.size(); i++) {
+        auto assignments = std::vector<std::vector<size_t>>(K);
+        for(size_t i = 0; i < n; i++) {
             auto closest = assignCluster(clusters, points[i]);
-            if(closest != (*assignements[i])) {
-                *(assignements[i]) = closest;
-                converged = false;
+            assignments[closest].emplace_back(i);
+        }
+        for(size_t k = 0; k < K; k++) {
+            for(size_t p = 0; p < clusters[k]->size(); p++) (*clusters[k])[p] = 0;
+            auto s = (float) assignments[k].size();
+            for(auto element: assignments[k]) {
+                for(size_t p = 0; p < clusters[k]->size(); p++) (*clusters[k])[p] += (*points[element])[p] / s;
             }
         }
-        // compute new mean
-        for(size_t i = 0; i < K; i++) {
-            std::vector<std::vector<double>*> membership;
-            for(size_t j = 0; j < n; j++) {
-                if((*assignements[j]) == i) {
-                    membership.emplace_back(points[j]);
-                }
-            }
-            delete clusters[i];
-            clusters[i] = centroid(points, mean(membership));
-        }
-        numIterations++;
-    } while(!converged);
-    std::cout << "Convergence in " << numIterations << " steps" << std::endl;
+
+    }
+
+    // Stop measuring time and calculate the elapsed time
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+
+    auto totalTime = elapsed.count() * 1e-9f;
+    printf("Time measured: %.3f seconds, %.5f per iteration.\n", totalTime, totalTime / MAXITER);
+
     return clusters;
 }
 
@@ -190,11 +135,28 @@ std::vector<std::vector<double>*> readFiles2(const std::string& path, size_t K) 
 
 
 int main() {
-    size_t K = 10;
+    size_t K = 7;
     auto data = readFiles2("./files/", K);
-    auto assignements = std::vector<size_t*>();
-    for(int i = 0; i < data.size(); i++) assignements.emplace_back(new size_t(0));
-    auto r = KMeans(data, assignements, K);
+    unsigned width = 40000;
+    for(unsigned M = 1; M <= 12; M++) {
+        unsigned nSamples = M * width;
+        printf("\nTest with %u samples, K=%lu\n", nSamples, K);
+        auto r = KMeans(data, K);
+        printVectors(r);
+    }
+    printf("\nTest with all the samples (4853516), K=%lu\n", K);
+    auto r = KMeans(data, K);
     printVectors(r);
+
+
+    // test over K
+    for(int i = 2; i <= 20; i++) {
+        printf("\nTest with all the samples, K=%lu\n", i);
+        r = KMeans(data, K);
+        printVectors(r);
+    }
+
+
+
     return 0;
 }
