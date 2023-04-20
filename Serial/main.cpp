@@ -8,7 +8,7 @@
 #include <chrono>
 #include <algorithm>
 
-#define MAXITER 2
+#define MAXITER 100
 
 
 std::vector<double>* mean(std::vector<std::vector<double>*>& points) {
@@ -109,7 +109,7 @@ void printVectors(std::vector<std::vector<double>*>& vectors) {
 
 
 
-std::vector<std::vector<double>*> readFiles2(const std::string& path, size_t K) {
+std::vector<std::vector<double>*> readFiles2(const std::string& path) {
     double number;
     auto result = std::vector<std::vector<double>*>();
     size_t pos = 0, prev = 0;
@@ -136,23 +136,23 @@ std::vector<std::vector<double>*> readFiles2(const std::string& path, size_t K) 
 
 int main() {
     size_t K = 7;
-    auto data = readFiles2("./files/", K);
-    unsigned width = 40000;
-    for(unsigned M = 1; M <= 12; M++) {
+    auto data = readFiles2("./files/");
+    unsigned width = 500000;
+    for(unsigned M = 10; M <= 9; M++) {
         unsigned nSamples = M * width;
         printf("\nTest with %u samples, K=%lu\n", nSamples, K);
-        auto r = KMeans(data, K);
-        printVectors(r);
+        auto r = KMeans(data, K, nSamples);
+        // printVectors(r);
     }
     printf("\nTest with all the samples (4853516), K=%lu\n", K);
     auto r = KMeans(data, K);
     printVectors(r);
 
-
+    return 0;
     // test over K
-    for(int i = 2; i <= 20; i++) {
+    for(size_t i = 2; i <= 20; i++) {
         printf("\nTest with all the samples, K=%lu\n", i);
-        r = KMeans(data, K);
+        r = KMeans(data, i);
         printVectors(r);
     }
 

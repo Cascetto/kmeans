@@ -10,24 +10,6 @@
 // #define M 62
 #define N 2
 #define TPB 32
-#define K 3
-#define K 4
-#define K 5
-#define K 6
-#define K 7
-#define K 8
-#define K 9
-#define K 10
-#define K 11
-#define K 12
-#define K 13
-#define K 14
-#define K 15
-#define K 16
-#define K 17
-#define K 18
-#define K 19
-#define K 20
 #define K 7
 #define MAX_ITER 100
 
@@ -378,19 +360,6 @@ int main() {
     srand(time(0));
     //initialize centroids
     std::vector<int> used = std::vector<int>();
-    for (int c = 0; c < K; c++) {
-
-
-        int dataIdx = (int) rand() % (*M);
-        while (std::find(used.begin(), used.end(), dataIdx) != used.end()) {
-            dataIdx++;
-        }
-        for (auto p = 0; p < N; p++) {
-            hostClusters[c * N + p] = hostData[dataIdx * N + p];
-        }
-        used.emplace_back(dataIdx);
-        hostMembershipCount[c] = 0;
-    }
     /*
 //initialize centroids
     int dataIdx = (int) rand() % (*M);
@@ -427,12 +396,32 @@ int main() {
     cudaMemcpy(deviceData, hostData, *M * N * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(deviceClusterAssignment, hostMembershipCount, K * sizeof(int), cudaMemcpyHostToDevice);
 
-    int cur_iter = 0;
     auto *hostClusterAssignment = (int *) malloc(sizeof(int) * *M);
-    int width = 40000;
-    for(int ms = 1; ms <= 12; ms++) {
-    auto begin = std::chrono::high_resolution_clock::now();
-        int fakeM = ms * width;
+    int width = 500000;
+    for(int ms = 10; ms <= 9; ms++) {
+        int fakeM = width * ms;
+
+        used = std::vector<int>();
+        for (int c = 0; c < K; c++) {
+
+
+            int dataIdx = (int) rand() % (fakeM);
+            while (std::find(used.begin(), used.end(), dataIdx) != used.end()) {
+                dataIdx++;
+            }
+            for (auto p = 0; p < N; p++) {
+                hostClusters[c * N + p] = hostData[dataIdx * N + p];
+            }
+            used.emplace_back(dataIdx);
+            hostMembershipCount[c] = 0;
+
+        }
+
+        cudaMemcpy(deviceClusters, hostClusters, K * N * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(deviceData, hostData, *M * N * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(deviceClusterAssignment, hostMembershipCount, K * sizeof(int), cudaMemcpyHostToDevice);
+        auto begin = std::chrono::high_resolution_clock::now();
+
         for(unsigned it = 0; it < MAX_ITER; it++) {
             clearCounts<<<(fakeM + TPB - 1) / TPB, TPB>>>(deviceMembershipCount);
             cudaDeviceSynchronize();
@@ -459,9 +448,27 @@ int main() {
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
         auto totalTime = elapsed.count() * 1e-9f;
-        printf("Configuration M=%d, K=7 Time measured: %.3f seconds, %.5f per iteration.\n", fakeM, totalTime, totalTime / MAX_ITER);
+        printf("Configuration M=%d, K=%d Time measured: %.3f seconds, %.5f per iteration.\n", fakeM, K, totalTime, totalTime / MAX_ITER);
     }
 
+    used = std::vector<int>();used = std::vector<int>();
+    for (int c = 0; c < K; c++) {
+
+
+        int dataIdx = (int) rand() % (*M);
+        while (std::find(used.begin(), used.end(), dataIdx) != used.end()) {
+            dataIdx++;
+        }
+        for (auto p = 0; p < N; p++) {
+            hostClusters[c * N + p] = hostData[dataIdx * N + p];
+        }
+        used.emplace_back(dataIdx);
+        hostMembershipCount[c] = 0;
+
+    }
+    cudaMemcpy(deviceClusters, hostClusters, K * N * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceData, hostData, *M * N * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceClusterAssignment, hostMembershipCount, K * sizeof(int), cudaMemcpyHostToDevice);
     auto begin = std::chrono::high_resolution_clock::now();
     for(unsigned it = 0; it < MAX_ITER; it++) {
         clearCounts<<<(*M + TPB - 1) / TPB, TPB>>>(deviceMembershipCount);
@@ -472,10 +479,11 @@ int main() {
                                                            *M);
         cudaDeviceSynchronize();
         //copy new centroids back to host
-        cudaMemcpy(hostClusters, deviceClusters, N * K * sizeof(float), cudaMemcpyDeviceToHost);
+cudaMemcpy(hostClusters, deviceClusters, N * K * sizeof(float), cudaMemcpyDeviceToHost);
         for (int i = 0; i < K; ++i) {
             printVec(hostClusters, i);
         }
+
 
         cudaMemset(deviceClusters, 0, K * N * sizeof(float));
         KMeansCentroidUpdate<<<(*M + TPB - 1) / TPB, TPB,
@@ -491,7 +499,8 @@ int main() {
     auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
     auto totalTime = elapsed.count() * 1e-9f;
-    printf("Configuration M=%d, K=7 Time measured: %.3f seconds, %.5f per iteration.\n", *M, totalTime, totalTime / MAX_ITER);
+    //printf("Configuration M=%d, K=%d Time measured: %.3f seconds, %.5f per iteration.\n", *M, K, totalTime, totalTime / MAX_ITER);
+
 
     cudaFree(deviceClusterAssignment);
     cudaFree(deviceClusters);
